@@ -13,6 +13,6 @@ begin
     where classid = :new.classid;
 exception
     when others then
-        dbms_output.put_line('Failed to update class size. Caused by:' || sqlerrm);
+        dbms_output.put_line('Failed to update class size. Caused by:' || chr(10) || sqlerrm);
 end;
 /
