@@ -363,8 +363,6 @@ procedure enroll_student(
     class_id classes.classid%type,
     status_out out varchar2
 ) is
-cid classes.classid%type;
-class_size classes.class_size%type;
 class_limit classes.limit%type;
 deptcode classes.dept_code%type;
 courseno classes.course_no%type;
@@ -384,6 +382,8 @@ begin
     -- Checking if cid is valid
     declare
         class_full exception;
+        cid classes.classid%type;
+        class_size classes.class_size%type;
     begin
         select classid, class_size, limit, dept_code, course_no
         into cid, class_size, class_limit, deptcode, courseno
@@ -408,7 +408,7 @@ begin
     begin
         for cur_row in (select classid from enrollments where sid = student_id)
         loop
-            if (cur_row.classid = cid) then
+            if (cur_row.classid = class_id) then
                 status_out := 'The student is already in this class';
                 dbms_output.put_line(status_out);
                 return;
@@ -453,7 +453,7 @@ begin
     begin
         insert into enrollments
         values (student_id, class_id, null);
-        status_out := trim(status_out || chr(10) || 'SUCCESS');
+        status_out := trim(status_out || chr(10) || 'Student [' || student_id || '] enrolled into [' || class_id || '] successfully');
     exception
         when others then
             status_out := 'Failed to enroll student; Caused by' || chr(10) || sqlerrm;
@@ -463,6 +463,135 @@ begin
 end;
 
 
+-- Problem 8
+procedure drop_class(
+    student_id students.sid%type,
+    class_id classes.classid%type,
+    status_out out varchar2
+) is
+    deptcode classes.dept_code%type;
+    courseno classes.course_no%type;
+    num_classes_enrolled integer := 0;
+    class_size classes.class_size%type;
+begin
+    -- Checking if sid is valid
+    declare
+        studentid students.sid%type;
+    begin
+        select sid into studentid from students where sid = student_id;
+    exception
+        when no_data_found then
+            status_out := 'The sid is invalid';
+            dbms_output.put_line(status_out);
+            return;
+    end;
+
+    -- Checking if cid is valid,
+    -- and if the student is enrolled in the course
+    declare
+        class_not_taken exception;
+        cid classes.classid%type;
+        studentid students.sid%type;
+    begin
+        select classid, class_size, dept_code, course_no, sid
+        into cid, class_size, deptcode, courseno, studentid
+        from classes
+        left outer join
+        (select * from enrollments where sid = student_id) e
+        using (classid)
+        where classid = class_id
+        ;
+        if (studentid is null) then
+            raise class_not_taken;
+        end if;
+    exception
+        when no_data_found then
+            status_out := 'classid not found';
+            dbms_output.put_line(status_out);
+            return;
+        when class_not_taken then
+            status_out := 'The student is not enrolled in the class';
+            dbms_output.put_line(status_out);
+            return;
+    end;
+
+    -- Checking if the class to be dropped is
+    -- a prerequisite of another course
+    declare
+        is_prerequisite exception;
+    begin
+        for cur_row in (
+            select dept_code, COURSE_NO
+            from (select * from enrollments where sid = student_id and classid != class_id)
+            join classes using (classid)
+        ) loop
+            num_classes_enrolled := num_classes_enrolled + 1;
+            declare
+                temp_course_no classes.course_no%type;
+            begin
+                select PRE_COURSE_NO into temp_course_no
+                from (
+                    select PRE_DEPT_CODE, PRE_COURSE_NO
+                    from prerequisites
+                    start with
+                        dept_code = cur_row.dept_code and
+                        course_no = cur_row.course_no
+                    connect by prior PRE_COURSE_NO = course_no
+                    and prior PRE_DEPT_CODE = dept_code
+                );
+                raise is_prerequisite;
+            exception
+                when no_data_found then
+                    null;
+            end;
+        end loop;
+    exception
+        when is_prerequisite then
+            status_out := 'The drop is not permitted because another class uses it as a prerequisite';
+            dbms_output.put_line(status_out);
+            return;
+    end;
+
+    if (num_classes_enrolled = 1) then
+        status_out := 'This student is enrolled in no class' || chr(10);
+    end if;
+    if (class_size = 1) then
+        status_out := status_out || 'The class now has no students' || chr(10);
+    end if;
+
+    begin
+        delete from enrollments
+        where classid = class_id
+        and sid = student_id;
+        status_out := status_out || 'Successfully dropped [' || student_id || '] from [' || class_id || ']';
+    exception
+        when others then
+            status_out := 'Failed to drop class [' || class_id || '] for student [' || student_id || ']; Caused by:' || chr(10) || sqlerrm;
+    end;
+    dbms_output.put_line(status_out);
 end;
+
+
+procedure delete_student(
+    student_id students.sid%type,
+    status_out out varchar2
+) is
+begin
+    delete from students where sid = student_id;
+    if (sql%rowcount = 0) then
+        status_out := 'sid not found';
+        dbms_output.put_line(status_out);
+        return;
+    else
+        status_out := 'Student [' || student_id || '] deleted successfully';
+    end if;
+exception
+    when others then
+        status_out := 'Failed to delete student [' || student_id || ']';
+        dbms_output.put(status_out);
+end;
+
+
+end; -- End Package Declaration
 /
 show errors;

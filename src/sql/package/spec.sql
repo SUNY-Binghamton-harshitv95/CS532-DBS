@@ -56,7 +56,20 @@ procedure enroll_student(
     student_id students.sid%type,
     class_id classes.classid%type,
     status_out out varchar2
-    );
+);
+
+-- Problem 8
+procedure drop_class(
+    student_id students.sid%type,
+    class_id classes.classid%type,
+    status_out out varchar2
+);
+
+-- Problem 9
+procedure delete_student(
+    student_id students.sid%type,
+    status_out out varchar2
+);
 
 
 end;
