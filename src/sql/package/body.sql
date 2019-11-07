@@ -1,4 +1,7 @@
 create or replace package body srs as
+
+-- Problem 2
+-- Only SQLPlus
 procedure show_students is
 begin
     declare
@@ -34,10 +37,11 @@ return refcursor as
 rc refcursor;
 begin
     open rc for
-    select * from students;
+    select * from students order by sid;
     return rc;
 end;
 
+-- Only SQLPlus
 procedure show_courses is
 has_records boolean := false;
 begin
@@ -59,10 +63,11 @@ return refcursor as
 rc refcursor;
 begin
     open rc for
-    select * from courses;
+    select * from courses order by dept_code, course_no;
     return rc;
 end;
 
+-- Only SQLPlus
 procedure show_classes is
 has_records boolean := false;
 begin
@@ -92,7 +97,7 @@ begin
     return rc;
 end;
 
-
+-- Only SQLPlus
 procedure show_enrollments is
 has_records boolean := false;
 begin
@@ -113,10 +118,11 @@ return refcursor as
 rc refcursor;
 begin
     open rc for
-    select * from enrollments;
+    select * from enrollments order by sid;
     return rc;
 end;
 
+-- Only SQLPlus
 procedure show_prerequisites is
 has_records boolean := false;
 begin
@@ -142,10 +148,11 @@ begin
     return rc;
 end;
 
+-- Only SQLPlus
 procedure show_logs is
 has_records boolean := false;
 begin
-    for cur in (select * from logs)
+    for cur in (select * from logs order by logid)
     loop
         dbms_output.put(cur.logid || ', ');
         dbms_output.put(cur.WHO || ', ');
@@ -164,40 +171,34 @@ return refcursor as
 rc refcursor;
 begin
     open rc for
-    select * from logs;
+    select * from logs order by logid;
     return rc;
 end;
+-- End Problem 2
 
-
-
+-- Problem 3
 procedure add_student (
     sid students.sid%type,
     firstname students.firstname%type,
     lastname students.lastname%type,
     status students.status%type,
     gpa students.gpa%type,
-    email students.email%type
+    email students.email%type,
+    status_out out varchar2
 ) is
 begin
-    insert into students (
-        sid,
-        firstname,
-        lastname,
-        status,
-        gpa,
-        email
-    )
-    values (
-        sid,
-        firstname,
-        lastname,
-        status,
-        gpa,
-        email
-    );
+    insert into students (sid, firstname, lastname, status, gpa, email)
+    values (sid, firstname, lastname, status, gpa, email);
+    status_out := 'Successfully created new student record';
+exception
+    when others then
+        status_out := 'Failed to create new student record; Caused by:' || chr(10) || sqlerrm;
+        dbms_output.put_line(status_out);
 end;
+-- End Problem 3
 
 
+-- Problem 4
 function get_enrollment_details (
     student_id students.sid%type
 )
@@ -206,8 +207,7 @@ as
 rc refcursor;
 begin
     open rc for
-    select
-    s.sid, s.lastname, s.status,
+    select s.sid, s.lastname, s.status,
     cl.classid, cl.dept_code || cl.course_no as course,
     c.title, cl.year, cl.semester
     from (select * from students where sid = student_id) s
@@ -220,14 +220,13 @@ begin
     return rc;
 end;
 
-
+-- Only SQLPlus
 procedure show_enrollment_details (
     student_id students.sid%type
 )
 is
 cursor cr is
-    select
-    s.sid, s.lastname, s.status,
+    select s.sid, s.lastname, s.status,
     cl.classid, cl.dept_code || cl.course_no as course,
     c.title, cl.year, cl.semester
     from (select * from students where sid = student_id) s
@@ -273,8 +272,10 @@ begin
         close cr;
     end if;
 end;
+-- End Problem 4
 
 
+-- Problem 5
 function get_prerequisites(
     deptcode courses.dept_code%type,
     courseno courses.course_no%type
@@ -288,9 +289,10 @@ begin
     start with dept_code = deptcode and course_no = courseno
     connect by prior PRE_COURSE_NO = course_no
     and prior PRE_DEPT_CODE = dept_code;
+    return rc;
 end;
 
-
+-- Only SQLPlus
 procedure show_prerequisites(
     deptcode courses.dept_code%type,
     courseno courses.course_no%type
@@ -307,7 +309,10 @@ begin
         dbms_output.put_line(cur_row.pre_course);
     end loop;
 end;
+-- End Problem 5
 
+
+-- Problem 6
 function get_class_students(
     class_id classes.classid%type
 ) return refcursor
@@ -324,6 +329,7 @@ begin
     return rc;
 end;
 
+-- Only SQLPlus
 procedure show_class_students(
     class_id classes.classid%type
 ) is
@@ -355,6 +361,7 @@ begin
         dbms_output.put_line('The cid is invalid');
     end if;
 end;
+-- End Problem 6
 
 
 -- Problem 7
@@ -459,8 +466,8 @@ begin
             status_out := 'Failed to enroll student; Caused by' || chr(10) || sqlerrm;
     end;
     dbms_output.put_line(status_out);
-
 end;
+-- End Problem 7
 
 
 -- Problem 8
@@ -570,8 +577,10 @@ begin
     end;
     dbms_output.put_line(status_out);
 end;
+-- End Problem 8
 
 
+-- Problem 9
 procedure delete_student(
     student_id students.sid%type,
     status_out out varchar2
@@ -590,7 +599,7 @@ exception
         status_out := 'Failed to delete student [' || student_id || ']';
         dbms_output.put(status_out);
 end;
-
+-- End Problem 9
 
 end; -- End Package Declaration
 /

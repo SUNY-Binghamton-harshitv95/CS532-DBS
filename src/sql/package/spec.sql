@@ -26,7 +26,8 @@ procedure add_student (
     lastname students.lastname%type,
     status students.status%type,
     gpa students.gpa%type,
-    email students.email%type
+    email students.email%type,
+    status_out out varchar2
 );
 
 -- Problem 4
